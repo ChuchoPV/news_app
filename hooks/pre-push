@@ -6,21 +6,21 @@ LIMITLINES=0
 HOTFIX=0
 COMMIT_TITLE="$(git show -s --format=%s $GIT_COMMIT)"
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-LATEST_MASTER_HASH=$(git rev-parse origin/main)
-LATEST_SHARED_HASH=$(git merge-base origin/main ${BRANCH})
-COMMITS_COUNT="$(git log --oneline ${BRANCH} ^origin/main | wc -l | xargs)"
+LATEST_MASTER_HASH=$(git rev-parse origin/master)
+LATEST_SHARED_HASH=$(git merge-base origin/master ${BRANCH})
+COMMITS_COUNT="$(git log --oneline ${BRANCH} ^origin/master | wc -l | xargs)"
 MODIFICATIONS=$(git diff --shortstat HEAD^ --ignore-blank-lines -w -- ":(exclude)*.json" ":(exclude)*.xib" ":(exclude)*.pbxproj" ":(exclude)*.xcscheme" ":(exclude)*.storyboard" ":(exclude)*.xcworkspacedata" ":(exclude)*.m")
 INSERTIONS=$(if [[ $MODIFICATIONS =~ "insertion" ]] ;then echo $MODIFICATIONS ; else echo ", 0 insertions"; fi | sed -E "s/.* ([0-9]+) insertion.*/\1/")
 DELETIONS=$(if [[ $MODIFICATIONS =~ "deletion" ]] ;then echo $MODIFICATIONS ; else echo ", 0 deletions"; fi | sed -E "s/.* ([0-9]+) deletion.*/\1/")
 
-if [[ "$COMMIT_TITLE" =~ "refactor: " ]];
+if [[ "$COMMIT_TITLE" =~ "Refactor: " ]];
 then
     LIMITLINES=1200
 else
     LIMITLINES=300
 fi
 
-if [[ "$COMMIT_TITLE" =~ "hotfix: " ]];
+if [[ "$COMMIT_TITLE" =~ "Hotfix: " ]];
 then
     HOTFIX=1
 else
@@ -31,7 +31,7 @@ echo "RULE # 0: Number limit lines at ($LIMITLINES)"
 
 # Rule for commit message
 echo "RULE # 1: Checking format for commit message..."
-if [[ ! "$COMMIT_TITLE" =~ "fix: "*|"hotfix: "*|"feat: "*|"refactor: "* ]];
+if [[ ! "$COMMIT_TITLE" =~ "Bugfix: "*|"Hotfix: "*|"Feature: "*|"Refactor: "* ]];
 then
     echo "RULE # 1: [ERROR] Invalid format for commit message!"
     exit 1
