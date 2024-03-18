@@ -1,0 +1,100 @@
+#!/bin/bash
+
+git fetch --all --prune
+
+LIMITLINES=0
+HOTFIX=0
+COMMIT_TITLE="$(git show -s --format=%s $GIT_COMMIT)"
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+LATEST_MASTER_HASH=$(git rev-parse origin/main)
+LATEST_SHARED_HASH=$(git merge-base origin/main ${BRANCH})
+COMMITS_COUNT="$(git log --oneline ${BRANCH} ^origin/main | wc -l | xargs)"
+MODIFICATIONS=$(git diff --shortstat HEAD^ --ignore-blank-lines -w -- ":(exclude)*.json" ":(exclude)*.xib" ":(exclude)*.pbxproj" ":(exclude)*.xcscheme" ":(exclude)*.storyboard" ":(exclude)*.xcworkspacedata" ":(exclude)*.m")
+INSERTIONS=$(if [[ $MODIFICATIONS =~ "insertion" ]] ;then echo $MODIFICATIONS ; else echo ", 0 insertions"; fi | sed -E "s/.* ([0-9]+) insertion.*/\1/")
+DELETIONS=$(if [[ $MODIFICATIONS =~ "deletion" ]] ;then echo $MODIFICATIONS ; else echo ", 0 deletions"; fi | sed -E "s/.* ([0-9]+) deletion.*/\1/")
+
+if [[ "$COMMIT_TITLE" =~ "refactor: " ]];
+then
+    LIMITLINES=1200
+else
+    LIMITLINES=300
+fi
+
+if [[ "$COMMIT_TITLE" =~ "hotfix: " ]];
+then
+    HOTFIX=1
+else
+    HOTFIX=0
+fi
+
+echo "RULE # 0: Number limit lines at ($LIMITLINES)"
+
+# Rule for commit message
+echo "RULE # 1: Checking format for commit message..."
+if [[ ! "$COMMIT_TITLE" =~ "fix: "*|"hotfix: "*|"feat: "*|"refactor: "* ]];
+then
+    echo "RULE # 1: [ERROR] Invalid format for commit message!"
+    exit 1
+else
+    echo "RULE # 1: Checked successfully!"
+fi
+
+# Rule for rebase with master, skipped when Hotfix
+echo "RULE # 2: Checking rebase with master..."
+if [[ $HOTFIX == 0 ]];
+then
+    if [[ ! $LATEST_MASTER_HASH == $LATEST_SHARED_HASH ]];
+    then
+        echo "RULE # 2: [ERROR] You need to rebase with master!"
+        exit 1
+    else
+        echo "RULE # 2: Checked successfully!"
+    fi
+else
+    echo "RULE # 2: Skipped successfully! (Hotfix)"
+fi
+            
+# Rule for new changes, no empty branches
+echo "RULE # 3: Checking new changes..."
+if [[ $COMMITS_COUNT == 0 ]] && [[ ! $BRANCH == master ]];
+then
+    echo "RULE # 3: [ERROR] You need to add new changes!"
+    exit 1
+else
+    echo "RULE # 3: Checked successfully!"
+fi
+
+# Rule number of commits == 1, skipped when Hotfix
+echo "RULE # 4: Checking number of commits..."
+if [[ $HOTFIX == 0 ]];
+then
+    if [[ $COMMITS_COUNT > 1 ]];
+    then
+        echo "RULE # 4: [ERROR] There must be only one commit!"
+        exit 1
+    else
+        echo "RULE # 4: Checked successfully!"
+    fi
+else
+    echo "RULE # 4: Skipped successfully! (Hotfix)"
+fi
+
+# Rule insertions limit
+echo "RULE # 5: Checking number of insertions..."
+if (( $INSERTIONS > $LIMITLINES ));
+then
+    echo "RULE # 5: [ERROR] You exceeded the insertions limit with $INSERTIONS lines!"
+    exit 1
+else
+    echo "RULE # 5: Checked successfully! ($INSERTIONS insertions)"
+fi
+
+# Rule deletions limit
+echo "RULE # 6: Checking number of deletions..."
+if (( $DELETIONS > $LIMITLINES ));
+then
+    echo "RULE # 6: [ERROR] You exceeded the deletions limit with $DELETIONS lines!"
+    exit 1
+else
+    echo "RULE # 6: Checked successfully! ($DELETIONS deletions)"
+fi
